@@ -1,0 +1,24 @@
+{
+  "name": "zenn.dev",
+  "version": "1.0.0",
+  "description": "[Zenn](https://zenn.dev) と GitHub リポジトリを連携して記事（Articles）や本（Books）を管理・公開するためのリポジトリです。",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kuchida1981/zenn.dev.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/kuchida1981/zenn.dev/issues"
+  },
+  "homepage": "https://github.com/kuchida1981/zenn.dev#readme",
+  "dependencies": {
+    "zenn-cli": "^0.5.3"
+  }
+}
