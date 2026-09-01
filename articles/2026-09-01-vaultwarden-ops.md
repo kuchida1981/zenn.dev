@@ -23,7 +23,7 @@ published: true
 
 [Vaultwarden](https://github.com/dani-garcia/vaultwarden) は、広く使われているパスワードマネージャー「Bitwarden」のオープンソース互換サーバー実装です（旧称: `bitwarden_rs`）。
 
-### なぜ公式BitwardenではなくVaultwardenなのか？
+## なぜ公式BitwardenではなくVaultwardenなのか？
 公式のBitwardenサーバーもオープンソースですが、**ASP.NET Core + MSSQL** など複数の重厚なコンポーネントで構成されており、自前でホストするには最低でも数GBのRAMと多数のDockerコンテナが必要になります。個人や少人数向けにはややオーバースペックです。
 
 一方の Vaultwarden は **Rust** でフルスクラッチで再実装されており、以下の特徴があります：
