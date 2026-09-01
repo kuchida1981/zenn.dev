@@ -3,7 +3,7 @@ title: "個人開発でここまでやるか?と思いつつ作った、家族�
 emoji: "🔐"
 type: "tech"
 topics: ["terraform", "gcp", "tailscale", "githubactions", "vaultwarden"]
-published: false
+published: true
 ---
 
 # はじめに
@@ -18,6 +18,21 @@ published: false
 - バックアップは自宅NASへ、世代管理付きで
 
 リポジトリはパブリックです: https://github.com/kuchida1981/vaultwarden-ops
+
+# そもそも Vaultwarden とは？
+
+[Vaultwarden](https://github.com/dani-garcia/vaultwarden) は、広く使われているパスワードマネージャー「Bitwarden」のオープンソース互換サーバー実装です（旧称: `bitwarden_rs`）。
+
+### なぜ公式BitwardenではなくVaultwardenなのか？
+公式のBitwardenサーバーもオープンソースですが、**ASP.NET Core + MSSQL** など複数の重厚なコンポーネントで構成されており、自前でホストするには最低でも数GBのRAMと多数のDockerコンテナが必要になります。個人や少人数向けにはややオーバースペックです。
+
+一方の Vaultwarden は **Rust** でフルスクラッチで再実装されており、以下の特徴があります：
+
+- **極めて軽量**: 単一バイナリ / 単一コンテナで動作し、DBも標準で SQLite を利用可能。メモリ消費量は数十MB程度に収まるため、GCEの `e2-micro` (1GB RAM) や Raspberry Pi のような極小リソースでも余裕で軽快に動く
+- **公式クライアントがそのまま使える**: ブラウザ拡張機能、iOS / Android アプリ、デスクトップアプリ、CLI など、公式の Bitwarden クライアントの「サーバーURL」を自分のホストに向けるだけで完全にそのまま利用可能
+- **プレミアム機能が利用可能**: 家族やチーム間でのパスワード共有（Organizations）やTOTP二要素認証コードの生成、添付ファイル保存など、公式SaaSでは有料プラン相当の機能も標準で使える
+
+この「**公式クライアントの使い勝手と安全性を享受しつつ、月額数十円〜数百円のミニマムなクラウドリソースで運用できる**」点が、セルフホスティングにおいて絶大な支持を集めている理由です。
 
 # 全体構成
 
