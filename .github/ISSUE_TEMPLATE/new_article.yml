@@ -1,0 +1,30 @@
+name: "新規記事の作成"
+description: "新しいZenn記事の下書きPRを作成します"
+title: "Article: [記事のタイトル]"
+labels: ["article-draft"]
+body:
+  - type: input
+    id: title
+    attributes:
+      label: "記事のタイトル"
+      placeholder: "例: GitHub Actions で Zenn の執筆を自動化する"
+    validations:
+      required: true
+  - type: dropdown
+    id: type
+    attributes:
+      label: "記事のタイプ"
+      description: "技術記事 (tech) または アイデア記事 (idea)"
+      options:
+        - "tech"
+        - "idea"
+    validations:
+      required: true
+  - type: input
+    id: emoji
+    attributes:
+      label: "アイキャッチ絵文字"
+      description: "アイキャッチとして使われる絵文字（1文字）"
+      placeholder: "📝"
+    validations:
+      required: true
