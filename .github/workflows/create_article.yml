@@ -1,0 +1,97 @@
+name: Create Article Draft
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  create-draft:
+    if: contains(github.event.issue.labels.*.name, 'article-draft')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Parse Issue Body
+        id: parse
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.issue.body;
+            
+            function extractValue(sectionTitle) {
+              const regex = new RegExp(`### ${sectionTitle}[\\r\\n]+([\\s\\S]*?)(?=[\\r\\n]+### |$)`, 'i');
+              const match = body.match(regex);
+              return match ? match[1].trim() : '';
+            }
+
+            const title = extractValue('記事のタイトル');
+            const type = extractValue('記事のタイプ');
+            const emoji = extractValue('アイキャッチ絵文字');
+
+            core.setOutput('title', title || context.payload.issue.title.replace(/^Article:\s*/i, ''));
+            core.setOutput('type', type || 'tech');
+            core.setOutput('emoji', emoji || '📝');
+
+      - name: Generate Article Draft
+        id: zenn
+        env:
+          TITLE: ${{ steps.parse.outputs.title }}
+          TYPE: ${{ steps.parse.outputs.type }}
+          EMOJI: ${{ steps.parse.outputs.emoji }}
+        run: |
+          ARTICLE_PATH=$(npx zenn new:article --title "$TITLE" --type "$TYPE" --emoji "$EMOJI" --machine-readable)
+          echo "article_path=$ARTICLE_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Create Branch, Commit and Push
+        id: git
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ARTICLE_PATH: ${{ steps.zenn.outputs.article_path }}
+          TITLE: ${{ steps.parse.outputs.title }}
+        run: |
+          BRANCH_NAME="article/issue-${ISSUE_NUMBER}"
+          
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git checkout -b "$BRANCH_NAME"
+          git add "$ARTICLE_PATH"
+          git commit -m "feat(article): create draft for #${ISSUE_NUMBER} (${TITLE})"
+          git push origin "$BRANCH_NAME"
+          
+          echo "branch_name=$BRANCH_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Create Pull Request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          TITLE: ${{ steps.parse.outputs.title }}
+          BRANCH_NAME: ${{ steps.git.outputs.branch_name }}
+          ARTICLE_PATH: ${{ steps.zenn.outputs.article_path }}
+        run: |
+          gh pr create \
+            --base main \
+            --head "$BRANCH_NAME" \
+            --title "Draft: ${TITLE}" \
+            --body "Resolves #${ISSUE_NUMBER}
+
+          ### 記事の下書きが作成されました 🎉
+          - ファイル: \`${ARTICLE_PATH}\`
+          - 元のイシュー: #${ISSUE_NUMBER}
+          
+          記事の執筆を行い、準備ができたらマージして公開してください。"
