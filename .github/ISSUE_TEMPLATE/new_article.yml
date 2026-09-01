@@ -1,6 +1,5 @@
 name: "新規記事の作成"
 description: "新しいZenn記事の下書きPRを作成します"
-title: "[記事のタイトルを入力してください]"
 body:
   - type: dropdown
     id: type
@@ -18,5 +17,6 @@ body:
       label: "アイキャッチ絵文字"
       description: "アイキャッチとして使われる絵文字（1文字）"
       placeholder: "📝"
+      value: "📝"
     validations:
-      required: true
+      required: false

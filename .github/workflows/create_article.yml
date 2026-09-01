@@ -32,18 +32,12 @@ jobs:
         with:
           script: |
             const body = context.payload.issue.body || '';
-            const issueTitle = context.payload.issue.title || '';
-            
+            const title = context.payload.issue.title || '';
+
             function extractValue(sectionTitle) {
               const regex = new RegExp(`### ${sectionTitle}[\\r\\n]+([\\s\\S]*?)(?=[\\r\\n]+### |$)`, 'i');
               const match = body.match(regex);
               return match ? match[1].trim() : '';
-            }
-
-            // タイトルは Issue のタイトルを使用（デフォルトのプレースホルダーを除去）
-            let title = issueTitle.replace(/^\[記事のタイトルを入力してください\]/i, '').trim();
-            if (!title) {
-              title = issueTitle;
             }
 
             const type = extractValue('記事のタイプ');
@@ -83,6 +77,7 @@ jobs:
           echo "branch_name=$BRANCH_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Create Pull Request
+        id: pr
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
@@ -90,7 +85,7 @@ jobs:
           BRANCH_NAME: ${{ steps.git.outputs.branch_name }}
           ARTICLE_PATH: ${{ steps.zenn.outputs.article_path }}
         run: |
-          gh pr create \
+          PR_URL=$(gh pr create \
             --base main \
             --head "$BRANCH_NAME" \
             --title "Draft: ${TITLE}" \
@@ -99,5 +94,18 @@ jobs:
           ### 記事の下書きが作成されました 🎉
           - ファイル: \`${ARTICLE_PATH}\`
           - 元のイシュー: #${ISSUE_NUMBER}
-          
-          記事の執筆を行い、準備ができたらマージして公開してください。"
+
+          記事の執筆を行い、準備ができたらマージして公開してください。")
+
+          echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
+          echo "pr_number=${PR_URL##*/}" >> "$GITHUB_OUTPUT"
+
+      - name: Close Original Issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
+        run: |
+          gh issue close "$ISSUE_NUMBER" \
+            --reason "completed" \
+            --comment "下書きPR (#${PR_NUMBER}) が作成されたため、このIssueをクローズしました。"
