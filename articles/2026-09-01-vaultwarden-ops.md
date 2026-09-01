@@ -6,7 +6,7 @@ topics: ["terraform", "gcp", "tailscale", "githubactions", "vaultwarden"]
 published: false
 ---
 
-## はじめに
+# はじめに
 
 家族で使うパスワードマネージャーとして [Vaultwarden](https://github.com/dani-garcia/vaultwarden)(Bitwarden互換のOSSサーバー実装)をGCP上にセルフホストしています。この記事では、その運用基盤をTerraform + GitHub Actions + Tailscaleでどう組んだかを紹介します。
 
@@ -19,7 +19,7 @@ published: false
 
 リポジトリはパブリックです: https://github.com/kuchida1981/vaultwarden-ops
 
-## 全体構成
+# 全体構成
 
 ```mermaid
 flowchart TB
@@ -46,7 +46,7 @@ flowchart TB
 
 この「人間は完全にTailscale経由、CIだけはIAP経由で特別扱い」という非対称な設計が今回のポイントの一つです。
 
-## Terraformをbootstrapとmainの2段に分けた理由
+# Terraformをbootstrapとmainの2段に分けた理由
 
 `terraform/`配下は `bootstrap` と `main` の2ディレクトリに分かれています。
 
@@ -57,7 +57,7 @@ flowchart TB
 
 一方 `main` はDependabotが週次でプロバイダのバージョンを上げるPRを送ってくるので、`terraform-plan.yml` → レビュー → mainマージ → `terraform-apply.yml` が起動し、GitHub Environmentの`production`承認ゲートで一時停止 → 承認、という流れを自動化しています。
 
-## Vaultwardenのバージョンアップも「マージ」と「デプロイ」を分離
+# Vaultwardenのバージョンアップも「マージ」と「デプロイ」を分離
 
 Vaultwardenのイメージタグは `vaultwarden/docker-compose.yml` に固定値で書いてあり、Dependabotが新バージョンを検知するとPRを出してくれます。ここでのポイントは、**PRをマージしただけでは本番に何も反映されない**という設計です。
 
@@ -66,7 +66,7 @@ Vaultwardenのイメージタグは `vaultwarden/docker-compose.yml` に固定�
 
 「マージ」と「本番反映」を明確に分けることで、深夜にDependabotのPRを機械的にマージしても勝手に本番が更新されることはなく、実際のロールアウトタイミングは常に自分の意思で選べます。VM自体は再起動しないので、Caddyが持っているTLS証明書やconfigのボリュームにも影響が出ません。
 
-## Tailscaleでネットワーク境界を作る
+# Tailscaleでネットワーク境界を作る
 
 このリポジトリでのTailscaleの使い所は3つあります。
 
@@ -76,13 +76,13 @@ Vaultwardenのイメージタグは `vaultwarden/docker-compose.yml` に固定�
 
 ACLやTailscale側の認証キー発行も `terraform/main/tailscale.tf` でTerraform管理下に置いているので、「誰が admin タグを持てるか」も含めてコードでレビューできます。
 
-## バックアップ: Btrfsスナップショットに世代管理を丸投げする
+# バックアップ: Btrfsスナップショットに世代管理を丸投げする
 
 Vaultwarden側のバックアップスクリプトは、DBのconsistentなスナップショット(`sqlite3 .backup`)・添付ファイル・Send・署名鍵・設定ファイルをまとめて、毎日Tailscale経由でSynology NASのrsyncデーモンへpushします。
 
 工夫したのは、**世代管理(何日分残すか)をVM側では一切持たず、NAS側のBtrfsスナップショット機能に丸投げした**点です。rsyncは常に「最新の状態を上書きする」だけのシンプルな役割に留め、7日分・4週分・3ヶ月分といった世代管理はNASのSmart Retentionルールに任せています。認証もrsyncdのパスワードのみで、SSH鍵ペアの管理をしていません。これは通信がTailscaleのWireGuardトンネル内に閉じているため許容している判断で、`openspec/changes/archive/2026-07-12-add-nas-backup/design.md` に判断理由を残しています。
 
-## OpenSpecでインフラ変更もスペック駆動にした
+# OpenSpecでインフラ変更もスペック駆動にした
 
 このリポジトリは実装をすべて[Claude Code](https://claude.com/claude-code)と一緒に進めていますが、単に「変更を頼んで終わり」にはせず、[OpenSpec](https://github.com/Fission-AI/OpenSpec)というスペック駆動開発のワークフローに乗せています。`openspec/changes/archive/` を見ると、これまでの変更が全部proposal(なぜやるか・設計・タスク一覧)として残っていることが分かります。
 
@@ -101,7 +101,7 @@ Vaultwarden側のバックアップスクリプトは、DBのconsistentなスナ
 
 一人で回している個人インフラであっても、「なぜこの設計にしたか」をproposalとして先に固め、実装後にspecへアーカイブする、というサイクルを踏むことで、数ヶ月後の自分が読んでも意思決定の背景が追える状態を維持できています。実際、上記のような小粒な変更(管理者トークンのハッシュ化、admin導線をTailscale serve経由に変更、IPヘッダの修正など)も、思いつきで直接VMを触るのではなく、必ずこのサイクルを通しています。
 
-## まとめ
+# まとめ
 
 - 家族用の小さなVaultwardenサーバーでも、「公開領域は最小限」「人間の承認を挟む」「変更はレビュー可能な形で残す」という原則は個人開発でも十分効果がある
 - Terraformのbootstrap/main分離は、CI用サービスアカウントに自己権限昇格をさせないための設計として汎用的に使える
