@@ -3,7 +3,7 @@ title: "KDE Plasma のタスクスイッチャーでウィンドウのプレビ�
 emoji: "🐡"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["KDE", "KDEPlasma", "ArchLinux"]
-published: false
+published: true
 ---
 
 ノートパソコンにインストールしている Arch Linux + KDE Plasma で、Alt+Tab で表示されるタスクスイッチャーにウィンドウプレビューが表示されなくなってしまった。
