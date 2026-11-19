@@ -1,5 +1,5 @@
 ---
-title: "Ubuntu で Antigravity CLI の Terminal Sandbox が表示されない原因と、AppArmor 制限を維持したまま有効化する方法"
+title: "Ubuntu で Antigravity CLI の Terminal Sandbox が出ない原因と AppArmor での有効化"
 emoji: "🛡️"
 type: "tech"
 topics: ["ubuntu", "apparmor", "antigravity", "linux", "sandbox"]
