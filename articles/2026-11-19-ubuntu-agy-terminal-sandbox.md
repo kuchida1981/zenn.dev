@@ -16,13 +16,13 @@ Arch Linux 上にインストールした Antigravity CLI（`agy`）では `/con
 
 - OS: Ubuntu 26.04.1 LTS (Resolute Raccoon)
 - カーネル: `7.0.0-43-generic`
-- Antigravity CLI: `agy 1.5.12`（`/home/kosuke/.local/bin/agy`）
+- Antigravity CLI: `agy 1.5.12`（`~/.local/bin/agy`）
 - 比較対象: Arch Linux 上の Antigravity CLI（`/config` に Sandbox ON/OFF 項目が表示される）
 
 # 現象
 
 - Ubuntu 上の `agy 1.5.12` で `/config` を開いても、Sandbox Mode や Auto モードの選択肢が表示されない。
-- `agy update` を実行しても最新バージョンと表示される。
+- `agy update` を実行しても最新バージョンと表示される（＝バージョンが古いことが原因ではない）。
 
 # 原因調査
 
@@ -48,6 +48,7 @@ kernel.unprivileged_userns_clone = 1
 user.max_user_namespaces = 248257
 ```
 
+- `kernel.unprivileged_userns_clone` は `1` なので、非特権 user namespace の作成自体はカーネル側で許可されています。
 - `user.max_user_namespaces` は十分な数があり、単純な上限ゼロではありません。
 - 一方で、コマンドごとの挙動は以下のように分かれました。
 
@@ -75,7 +76,7 @@ $ bwrap --ro-bind / / true
 - `/etc/apparmor.d/bwrap-userns-restrict`
   - `/usr/bin/bwrap` 専用のプロファイルが用意されており、`allow capability,` と `allow userns,` が明示的に許可されているため、`bwrap` 単体は動作します。
 
-なお、カーネルログ（`journalctl -k -b`）を確認した際、他プロセスの大量の監査ログにより `audit_backlog_limit=64` を超えてログが抑制・欠落（`audit_lost` / `kauditd_printk_skb: ... callbacks suppressed`）していましたが、ログが溢れる前の起動直後には別プロセスで以下のような遷移が記録されていました。
+なお、`agy` 自身の拒否ログは `journalctl -k -b` では確認できませんでした。他プロセスの大量の監査ログにより `audit_backlog_limit=64` を超えてログが抑制・欠落（`audit_lost` / `kauditd_printk_skb: ... callbacks suppressed`）していましたが、ログが溢れる前の起動直後に、`agy` とは別のプロセス（`ubuntu-insights`）で、同じ仕組みによる以下の遷移が記録されていました。
 
 ```text
 apparmor="AUDIT" operation="userns_create" class="namespace" info="Userns create - transitioning profile" profile="unconfined" pid=15190 comm="(ubuntu-insigh)" requested="userns_create" target="unprivileged_userns" execpath="/usr/lib/systemd/systemd-executor"
@@ -90,13 +91,13 @@ apparmor="DENIED" operation="capable" class="cap" profile="unprivileged_userns" 
 
 ## 1. `/etc/apparmor.d/agy` の作成
 
-`/home/kosuke/.local/bin/agy` 向けのプロファイルを作成します（root 権限が必要）。
+`~/.local/bin/agy` 向けのプロファイルを作成します（root 権限が必要）。AppArmor のプロファイルでは `~` が使えないため、`@{HOME}` でホームディレクトリを指定します。
 
 ```apparmor
 abi <abi/5.0>,
 include <tunables/global>
 
-profile agy /home/kosuke/.local/bin/agy flags=(unconfined) {
+profile agy @{HOME}/.local/bin/agy flags=(unconfined) {
   userns,
 
   include if exists <local/agy>
@@ -107,13 +108,23 @@ profile agy /home/kosuke/.local/bin/agy flags=(unconfined) {
 `abi <abi/5.0>,` は Ubuntu 26.04 の環境（`/etc/apparmor.d/unprivileged_userns` 等）に合わせた指定です。Ubuntu 24.04 等の環境では `abi <abi/4.0>,` になる場合があります。
 :::
 
+### このプロファイルの意味
+
+- `flags=(unconfined)`: `agy` 自体は通常どおり（`unconfined` と同等に）動かします。
+- `userns,`: user namespace の作成を明示的に許可します。これにより、`unconfined` プロセスが user namespace を作ると `unprivileged_userns`（`audit deny capability,`）へ遷移して capability を剥奪される挙動が起きなくなり、`/proc/self/uid_map` への書き込みも通ります。
+- 許可の対象は `agy` のバイナリパスに限定されます。他のプロセスには従来どおり `kernel.apparmor_restrict_unprivileged_userns = 1` の制限がかかります。
+
+:::message alert
+トレードオフとして、`agy` とその子プロセスは user namespace 内で capability を使えるようになります。信頼できるバイナリにだけ適用してください。
+:::
+
 ## 2. プロファイルの読み込みと `agy` の再起動
 
 ```bash
 sudo apparmor_parser -r /etc/apparmor.d/agy
 ```
 
-- OS や AppArmor サービス全体の再起動は不要で、`apparmor_parser -r` 実行時点でカーネルに即時反映されます。
+- OS や AppArmor サービス全体の再起動は不要で、`apparmor_parser -r` 実行時点でカーネルに即時反映されます。`/etc/apparmor.d/` に置いたプロファイルは、再起動後も AppArmor サービスにより自動で読み込まれます。
 - ただし、AppArmor のプロファイル適用はプロセス起動（`execve`）時に行われるため、**すでに起動中の `agy` は一度終了して再起動する必要があります**。
 
 # 動作確認結果
@@ -123,7 +134,7 @@ sudo apparmor_parser -r /etc/apparmor.d/agy
 - **分離された PID 名前空間での動作**
   - サンドボックス内から `ps -eo pid,comm,label` を実行すると、`PID 1` が `exe` となっており、PID 名前空間が分離されていることが確認できました。
 - **AppArmor ラベルの遷移**
-  - プロセスのラベルが `unconfined` ではなく `agy (unconfined)` になっていました。
+  - `ps` の `label` 列が `unconfined` ではなく `agy (unconfined)` になっていました。
 - **ファイルシステム分離**
   - サンドボックス内のシェルからは `~/.gemini/antigravity-cli/log/` へのアクセスが遮断されており、保護境界が機能していることが確認できました。
 
