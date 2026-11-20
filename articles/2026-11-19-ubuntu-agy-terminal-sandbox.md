@@ -3,7 +3,7 @@ title: "Ubuntu で Antigravity CLI の Terminal Sandbox が出ない原因と Ap
 emoji: "🛡️"
 type: "tech"
 topics: ["ubuntu", "apparmor", "antigravity", "linux", "sandbox"]
-published: false
+published: true
 ---
 
 # はじめに
