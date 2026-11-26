@@ -3,7 +3,7 @@ title: "Antigravity CLI の Ctrl+G で開くプロンプトを Neovim で Markdo
 emoji: "📝"
 type: "tech"
 topics: ["neovim", "antigravity", "claudecode", "markdown"]
-published: false
+published: true
 ---
 
 # はじめに
@@ -90,6 +90,8 @@ vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
   end,
 })
 ```
+
+なお動作確認は未実施。
 :::
 
 # まとめ
