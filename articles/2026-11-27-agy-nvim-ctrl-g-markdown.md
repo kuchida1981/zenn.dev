@@ -60,9 +60,27 @@ Antigravity CLI で `Ctrl+G` を押して Neovim を起動すると、以下の�
 
 # Neovim 側の設定で解決する
 
-CLI 側で変えられないのであれば、Neovim 側でファイル名のパターンを見て `filetype` を `markdown` に切り替えてしまえば解決します。
+CLI 側で変えられないのであれば、Neovim 側でファイル名のパターンを見て `filetype` を `markdown` として認識させれば解決します。
 
-`init.lua`（または設定読み込み先）に以下の `autocmd` を追加しました。
+Neovim 0.8 以降では `vim.filetype.add` が使えるため、`init.lua`（または設定読み込み先）に以下のように記述するのがシンプルでモダンです（手元の Neovim 0.11.6 で動作確認済み）。
+
+```lua
+vim.filetype.add {
+  pattern = {
+    [".*/jetski%-prompt%-.*%.txt"] = "markdown",
+  },
+}
+```
+
+## この設定のポイント
+
+- **最初から `markdown` として判定される**: `BufRead` / `BufNewFile` の `autocmd` で後から `vim.bo.filetype` を上書きする方法と違い、Neovim 標準の filetype 検出パイプラインに組み込まれるため、最初から `markdown` として扱われます。
+- **影響範囲を限定できる**: `jetski-prompt-*.txt` にマッチしたときだけ `markdown` になるため、普段開く通常の `.txt` ファイル（`text`）には影響しません。
+- **OS を問わずマッチする**: 先頭に `.*/` を付けているため、Linux の `/tmp/jetski-prompt-*.txt` だけでなく、macOS の `/var/folders/.../jetski-prompt-*.txt` のような深い一時ディレクトリ配下でもマッチします。
+- **Lua パターンでのエスケープ**: `vim.filetype.add` の `pattern` は Vim の glob ではなく **Lua パターン** で評価されるため、`*` ではなく `.*` を使い、特殊文字の `-` と `.` は `%-`・`%.` のように `%` でエスケープする必要があります。
+
+:::message
+Neovim 0.7 以前の環境や、`autocmd` ベースで書きたい場合は以下のように記述することもできます。
 
 ```lua
 vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
@@ -72,18 +90,10 @@ vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
   end,
 })
 ```
-
-## この設定のポイント
-
-- **影響範囲を限定できる**: `*/jetski-prompt-*.txt` にマッチしたときだけ `filetype` を `markdown` にするため、普段開く通常の `.txt` ファイルの挙動には影響しません。
-- **OS を問わずマッチする**: 先頭に `*/` を付けているため、Linux の `/tmp/jetski-prompt-*.txt` だけでなく、macOS の `/var/folders/.../jetski-prompt-*.txt` のような深い一時ディレクトリ配下でも問題なく動作します。
-
-:::message
-Neovim 0.8 以降であれば、`vim.filetype.add` を使ってパターンマッチで filetype を割り当てることも可能です。既存の `autocmd` ベースの設定にそのまま並べたい場合は、上記のような `nvim_create_autocmd` がシンプルで扱いやすいです。
 :::
 
 # まとめ
 
 - Antigravity CLI の `Ctrl+G` で開く一時ファイルは `jetski-prompt-*.txt` 固定になっており、現時点では CLI 側の設定で `.md` に変更することはできません。
 - 拡張子を `.md` にしてほしいという要望は、調べた限りでは目立った Issue 等としては見つかりませんでした。
-- Neovim 側で `*/jetski-prompt-*.txt` に対して `vim.bo.filetype = "markdown"` を設定することで、他の `.txt` ファイルに影響を与えずに Markdown として快適にプロンプトを編集できるようになりました。
+- Neovim 側で `vim.filetype.add` を使って `.*/jetski%-prompt%-.*%.txt` に `markdown` を割り当てることで、他の `.txt` ファイルに影響を与えずに Markdown として快適にプロンプトを編集できるようになりました。
